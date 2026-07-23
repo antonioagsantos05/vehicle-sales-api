@@ -1,0 +1,36 @@
+services:
+  postgres-api:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: vehicle_sales
+      POSTGRES_USER: vehicle_sales
+      POSTGRES_PASSWORD: vehicle_sales
+    ports:
+      - "5432:5432"
+    volumes:
+      - api_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vehicle_sales -d vehicle_sales"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    environment:
+      DB_URL: jdbc:postgresql://postgres-api:5432/vehicle_sales
+      DB_USERNAME: vehicle_sales
+      DB_PASSWORD: vehicle_sales
+      JWT_ISSUER_URI: ${JWT_ISSUER_URI:-http://localhost:8081/realms/vehicle-sales}
+      JWT_JWK_SET_URI: ${JWT_JWK_SET_URI:-http://host.docker.internal:8081/realms/vehicle-sales/protocol/openid-connect/certs}
+      KEYCLOAK_EXTERNAL_URL: ${KEYCLOAK_EXTERNAL_URL:-http://localhost:8081/realms/vehicle-sales}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres-api:
+        condition: service_healthy
+
+volumes:
+  api_postgres_data:
